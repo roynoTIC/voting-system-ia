@@ -119,6 +119,9 @@
         function checkSystemStatus() {
             statusDiv.innerHTML = '';
             
+            const questionsCount = votingSystem?.questions?.length || 0;
+            const questionsStatus = questionsCount > 0 ? '✅' : '⏳';
+            
             const status = document.createElement('div');
             status.innerHTML = `
                 <div class="log">
@@ -126,7 +129,7 @@
                     <strong>VotingSystem:</strong> ${typeof votingSystem !== 'undefined' ? '✅ Chargé' : '❌ Non chargé'}<br>
                     <strong>User ID:</strong> ${votingSystem?.userId || 'N/A'}<br>
                     <strong>Online:</strong> ${votingSystem?.isOnline ? '🟢 Oui' : '🔴 Non'}<br>
-                    <strong>Questions chargées:</strong> ${votingSystem?.questions?.length || 0}
+                    <strong>Questions chargées:</strong> ${questionsStatus} ${questionsCount}
                 </div>
             `;
             statusDiv.appendChild(status);
@@ -142,12 +145,14 @@
                 }
 
                 log(`User ID: ${votingSystem.userId}`, 'info');
-                log(`Questions disponibles: ${votingSystem.questions.length}`, 'info');
-
-                if (votingSystem.questions.length === 0) {
-                    log('Aucune question trouvée', 'warning');
+                
+                if (!votingSystem.questions || votingSystem.questions.length === 0) {
+                    log('Aucune question trouvée - attente du chargement...', 'warning');
+                    log('Attends 3 secondes et réessaie', 'info');
                     return;
                 }
+                
+                log(`Questions disponibles: ${votingSystem.questions.length}`, 'info');
 
                 const firstQuestion = votingSystem.questions[0];
                 log(`Test sur la question: "${firstQuestion.text}"`, 'info');
@@ -186,11 +191,17 @@
                     return;
                 }
 
+                if (!votingSystem.questions || votingSystem.questions.length === 0) {
+                    log('Aucune question chargée', 'warning');
+                    log('Attends que Firebase se synchronise...', 'info');
+                    return;
+                }
+
                 log(`Total questions: ${votingSystem.questions.length}`, 'info');
 
                 votingSystem.questions.forEach((q, idx) => {
                     if (idx < 3) { // Afficher les 3 premières
-                        log(`Q${q.id}: "${q.text.substring(0, 50)}..." - ${q.votes.length} votes`, 'info');
+                        log(`Q${q.id}: "${q.text.substring(0, 50)}..." - ${q.votes?.length || 0} votes`, 'info');
                     }
                 });
 

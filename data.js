@@ -71,7 +71,11 @@ class VotingSystem {
             if (data) {
                 this.questions = Object.values(data);
                 this.isOnline = true;
+                console.log('Questions chargées depuis Firebase:', this.questions.length);
                 this.notifySyncCallbacks();
+            } else {
+                console.warn('Aucune donnée dans Firebase, chargement des données locales');
+                this.loadLocalData();
             }
         }, (error) => {
             console.warn('Firebase sync error:', error);
@@ -99,16 +103,23 @@ class VotingSystem {
     }
 
     save() {
+        // Sauvegarder localement
         localStorage.setItem('votingData', JSON.stringify(this.questions));
+        console.log('Données sauvegardées localement');
         
+        // Sauvegarder dans Firebase
         if (this.isOnline && this.db) {
             const questionsObj = {};
             this.questions.forEach(q => {
                 questionsObj[q.id] = q;
             });
-            this.db.ref('questions').set(questionsObj).catch(err => {
-                console.error('Erreur de synchronisation:', err);
+            this.db.ref('questions').set(questionsObj).then(() => {
+                console.log('Données synchronisées avec Firebase');
+            }).catch(err => {
+                console.error('Erreur de synchronisation Firebase:', err);
             });
+        } else {
+            console.warn('Firebase hors ligne - données en cache local uniquement');
         }
     }
 
@@ -122,16 +133,25 @@ class VotingSystem {
 
     rate(questionId, rating) {
         const question = this.questions.find(q => q.id === questionId);
-        if (!question) return;
+        if (!question) {
+            console.error('Question non trouvée:', questionId);
+            return;
+        }
 
+        // Supprimer l'ancien vote de cet utilisateur
         question.votes = question.votes.filter(v => v.userId !== this.userId);
 
+        // Ajouter le nouveau vote
         if (rating !== null) {
-            question.votes.push({
+            const vote = {
                 userId: this.userId,
                 rating: rating,
                 createdAt: new Date().toISOString()
-            });
+            };
+            question.votes.push(vote);
+            console.log('Vote enregistré:', vote);
+        } else {
+            console.log('Vote supprimé pour la question:', questionId);
         }
 
         this.save();
@@ -191,35 +211,46 @@ class VotingSystem {
 
     proposeReformulation(questionId, newText) {
         const question = this.questions.find(q => q.id === questionId);
-        if (!question) return;
+        if (!question) {
+            console.error('Question non trouvée:', questionId);
+            return;
+        }
 
         if (!question.reformulations) {
             question.reformulations = [];
         }
 
-        question.reformulations.push({
+        const reformulation = {
             text: newText,
             votes: 0,
             createdAt: new Date().toISOString()
-        });
+        };
 
+        question.reformulations.push(reformulation);
+        console.log('Reformulation proposée:', reformulation);
         this.save();
     }
 
     proposeRelatedQuestions(questionId, relatedIds) {
         const question = this.questions.find(q => q.id === questionId);
-        if (!question) return;
+        if (!question) {
+            console.error('Question non trouvée:', questionId);
+            return;
+        }
 
         if (!question.relatedQuestions) {
             question.relatedQuestions = [];
         }
 
+        const addedIds = [];
         relatedIds.forEach(id => {
             if (!question.relatedQuestions.includes(id)) {
                 question.relatedQuestions.push(id);
+                addedIds.push(id);
             }
         });
 
+        console.log(`${addedIds.length} questions connexes ajoutées:`, addedIds);
         this.save();
     }
 
@@ -230,18 +261,23 @@ class VotingSystem {
 
     addComment(questionId, text) {
         const question = this.questions.find(q => q.id === questionId);
-        if (!question) return;
+        if (!question) {
+            console.error('Question non trouvée:', questionId);
+            return;
+        }
 
         if (!question.comments) {
             question.comments = [];
         }
 
-        question.comments.push({
+        const comment = {
             text: text,
             userId: this.userId,
             createdAt: new Date().toISOString()
-        });
+        };
 
+        question.comments.push(comment);
+        console.log('Commentaire ajouté:', comment);
         this.save();
     }
 
