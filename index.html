@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Système de Vote - Questions sur l'IA</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Questions sur l'IA</h1>
+            <p>Votez pour les questions qui vous intéressent</p>
+        </header>
+
+        <div class="controls">
+            <button type="button" id="proposeBtn" class="btn btn-primary">+ Proposer une question</button>
+            <button type="button" id="mergeBtn" class="btn btn-secondary">Fusionner des thèmes</button>
+            <button type="button" id="resetBtn" class="btn btn-reset">Réinitialiser</button>
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Rechercher...">
+            </div>
+        </div>
+
+        <div id="reformulationModal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2>Proposer une reformulation</h2>
+                <p id="reformulationQuestion"></p>
+                <textarea id="reformulationText" placeholder="Votre reformulation..."></textarea>
+                <button type="button" id="submitReformulation" class="btn btn-primary">Soumettre</button>
+            </div>
+        </div>
+
+        <div id="relatedQuestionsModal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2>Proposer des questions connexes</h2>
+                <p id="relatedQuestionTitle"></p>
+                <p>Sélectionnez les questions connexes:</p>
+                <div id="relatedCheckboxes" class="merge-checkboxes"></div>
+                <button type="button" id="submitRelated" class="btn btn-primary">Proposer la fusion</button>
+            </div>
+        </div>
+
+        <div id="commentsModal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2>Commentaires</h2>
+                <p id="commentsQuestionTitle"></p>
+                <div id="commentsList" class="comments-list"></div>
+                <textarea id="commentText" placeholder="Ajouter un commentaire..."></textarea>
+                <button type="button" id="submitComment" class="btn btn-primary">Ajouter</button>
+            </div>
+        </div>
+
+        <div id="questionsContainer" class="questions-grid"></div>
+
+        <!-- Modal: Rating Info -->
+        <div id="ratingInfoModal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2>Notation</h2>
+                <p>Cliquez sur les étoiles pour noter cette question de 1 à 5:</p>
+                <ul class="rating-legend">
+                    <li>⭐ = Pas intéressant</li>
+                    <li>⭐⭐ = Peu intéressant</li>
+                    <li>⭐⭐⭐ = Moyen</li>
+                    <li>⭐⭐⭐⭐ = Intéressant</li>
+                    <li>⭐⭐⭐⭐⭐ = Très intéressant</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Propose Question -->
+    <div id="proposeModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Proposer une nouvelle question</h2>
+            <textarea id="newQuestion" placeholder="Votre question..."></textarea>
+            <button type="button" id="submitQuestion" class="btn btn-primary">Soumettre</button>
+        </div>
+    </div>
+
+    <!-- Modal: Merge Themes -->
+    <div id="mergeModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Fusionner des thèmes</h2>
+            <p>Sélectionnez les questions à fusionner (au moins 2):</p>
+            <div id="mergeCheckboxes" class="merge-checkboxes"></div>
+            <input type="text" id="mergedName" placeholder="Nouveau titre fusionné...">
+            <button type="button" id="submitMerge" class="btn btn-primary">Fusionner</button>
+        </div>
+    </div>
+
+    <script src="data.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
