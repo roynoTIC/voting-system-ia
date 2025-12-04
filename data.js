@@ -25,65 +25,136 @@ const initialQuestions = [
 
 class VotingSystem {
     constructor() {
-        this.loadData();
+        this.userId = this.getOrCreateUserId();
+        this.questions = [];
+        this.isOnline = false;
+        this.syncCallbacks = [];
+        this.initFirebase();
     }
 
-    loadData() {
+    getOrCreateUserId() {
+        let userId = localStorage.getItem('userId');
+        if (!userId) {
+            userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substring(2, 11);
+            localStorage.setItem('userId', userId);
+        }
+        return userId;
+    }
+
+    initFirebase() {
+        if (!window.FIREBASE_CONFIG) {
+            console.warn('Firebase config not loaded. Using local storage only.');
+            this.loadLocalData();
+            return;
+        }
+
+        if (!window.firebase) {
+            console.error('Firebase SDK not loaded');
+            this.loadLocalData();
+            return;
+        }
+
+        try {
+            firebase.initializeApp(FIREBASE_CONFIG);
+            this.db = firebase.database();
+            this.auth = firebase.auth();
+            
+            // Authentification anonyme
+            this.auth.signInAnonymously().then(() => {
+                this.setupRealtimeSync();
+            }).catch((error) => {
+                console.error('Authentication error:', error);
+                this.loadLocalData();
+            });
+        } catch (error) {
+            console.error('Firebase initialization error:', error);
+            this.loadLocalData();
+        }
+    }
+
+    setupRealtimeSync() {
+        this.db.ref('questions').on('value', (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                this.questions = Object.values(data);
+                this.isOnline = true;
+                this.notifySyncCallbacks();
+            }
+        }, (error) => {
+            console.warn('Firebase sync error:', error);
+            this.isOnline = false;
+            this.loadLocalData();
+        });
+    }
+
+    loadLocalData() {
         const stored = localStorage.getItem('votingData');
         if (stored) {
-            const parsed = JSON.parse(stored);
-            // Migration: convert old format to new format
-            this.questions = parsed.map(q => {
-                if (q.ratings === undefined) {
-                    return {
-                        id: q.id,
-                        text: q.text,
-                        ratings: [],
-                        userRating: null,
-                        createdAt: q.createdAt || new Date().toISOString(),
-                        merged: q.merged || false
-                    };
-                }
-                return q;
-            });
+            this.questions = JSON.parse(stored);
         } else {
             this.questions = initialQuestions.map((text, id) => ({
                 id: id,
                 text: text,
-                ratings: [],
-                userRating: null,
+                votes: [],
                 createdAt: new Date().toISOString(),
-                merged: false
+                merged: false,
+                reformulations: [],
+                relatedQuestions: [],
+                comments: []
             }));
-            this.save();
         }
     }
 
     save() {
         localStorage.setItem('votingData', JSON.stringify(this.questions));
+        
+        if (this.isOnline && this.db) {
+            const questionsObj = {};
+            this.questions.forEach(q => {
+                questionsObj[q.id] = q;
+            });
+            this.db.ref('questions').set(questionsObj).catch(err => {
+                console.error('Erreur de synchronisation:', err);
+            });
+        }
+    }
+
+    onSync(callback) {
+        this.syncCallbacks.push(callback);
+    }
+
+    notifySyncCallbacks() {
+        this.syncCallbacks.forEach(cb => cb());
     }
 
     rate(questionId, rating) {
         const question = this.questions.find(q => q.id === questionId);
         if (!question) return;
 
-        if (question.userRating !== null) {
-            question.ratings = question.ratings.filter(r => r !== question.userRating);
-        }
+        question.votes = question.votes.filter(v => v.userId !== this.userId);
 
         if (rating !== null) {
-            question.ratings.push(rating);
-            question.userRating = rating;
-        } else {
-            question.userRating = null;
+            question.votes.push({
+                userId: this.userId,
+                rating: rating,
+                createdAt: new Date().toISOString()
+            });
         }
 
         this.save();
     }
 
+    getUserRating(questionId) {
+        const question = this.questions.find(q => q.id === questionId);
+        if (!question) return null;
+        const userVote = question.votes.find(v => v.userId === this.userId);
+        return userVote ? userVote.rating : null;
+    }
+
     getAverageRating(question) {
-        if (question.ratings.length === 0) return 0;
-        return (question.ratings.reduce((a, b) => a + b, 0) / question.ratings.length).toFixed(1);
+        if (question.votes.length === 0) return 0;
+        const sum = question.votes.reduce((a, b) => a + b.rating, 0);
+        return (sum / question.votes.length).toFixed(1);
     }
 
     addQuestion(text) {
@@ -91,10 +162,12 @@ class VotingSystem {
         this.questions.push({
             id: newId,
             text: text,
-            ratings: [],
-            userRating: null,
+            votes: [],
             createdAt: new Date().toISOString(),
-            merged: false
+            merged: false,
+            reformulations: [],
+            relatedQuestions: [],
+            comments: []
         });
         this.save();
         return newId;
@@ -108,11 +181,13 @@ class VotingSystem {
         const merged = {
             id: Math.max(...this.questions.map(q => q.id), -1) + 1,
             text: newText,
-            ratings: questions.flatMap(q => q.ratings),
-            userRating: null,
+            votes: questions.flatMap(q => q.votes),
             createdAt: new Date().toISOString(),
             merged: true,
-            mergedFrom: ids
+            mergedFrom: ids,
+            reformulations: [],
+            relatedQuestions: [],
+            comments: []
         };
 
         this.questions = this.questions.filter(q => !ids.includes(q.id));
@@ -170,6 +245,7 @@ class VotingSystem {
 
         question.comments.push({
             text: text,
+            userId: this.userId,
             createdAt: new Date().toISOString()
         });
 

@@ -187,7 +187,7 @@ function render() {
 
     questionsContainer.innerHTML = questions.map((q, index) => {
         const avgRating = votingSystem.getAverageRating(q);
-        const ratingCount = q.ratings.length;
+        const ratingCount = q.votes.length;
         const questionNumber = index + 1;
         const reformulations = q.reformulations || [];
         const relatedQuestions = q.relatedQuestions || [];
@@ -230,8 +230,11 @@ function render() {
                     <strong>${avgRating}</strong> / 5 
                     ${ratingCount > 0 ? `(${ratingCount} ${ratingCount === 1 ? 'vote' : 'votes'})` : '(pas encore noté)'}
                 </div>
+                <div class="user-vote-info">
+                    ${votingSystem.getUserRating(q.id) ? `Votre vote: ${votingSystem.getUserRating(q.id)} ⭐` : ''}
+                </div>
 
-                ${createStarRating(q.id, q.userRating)}
+                ${createStarRating(q.id, votingSystem.getUserRating(q.id))}
 
                 <div class="button-group">
                     <button type="button" class="btn btn-small" onclick="openReformulationModal(${q.id}, '${escapeHtml(q.text).replace(/'/g, "\\'")}')">
@@ -331,5 +334,25 @@ function deleteComment(questionId, commentIndex) {
     }
 }
 
+// Setup real-time sync listener
+votingSystem.onSync(() => {
+    render();
+    updateSyncStatus();
+});
+
+function updateSyncStatus() {
+    const statusEl = document.getElementById('syncStatus');
+    if (statusEl) {
+        if (votingSystem.isOnline) {
+            statusEl.textContent = '🟢 Synchronisé';
+            statusEl.style.color = '#4caf50';
+        } else {
+            statusEl.textContent = '🔴 Hors ligne (données locales)';
+            statusEl.style.color = '#f44336';
+        }
+    }
+}
+
 // Initial render
 render();
+updateSyncStatus();

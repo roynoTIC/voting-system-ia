@@ -32,6 +32,12 @@ header p {
     opacity: 0.9;
 }
 
+.sync-status {
+    font-size: 0.9em;
+    margin-top: 10px;
+    color: #999;
+}
+
 .controls {
     display: flex;
     gap: 15px;
@@ -157,6 +163,13 @@ header p {
 .rating-info strong {
     color: #667eea;
     font-size: 1.1em;
+}
+
+.user-vote-info {
+    font-size: 0.85em;
+    color: #667eea;
+    font-weight: 600;
+    margin-top: 5px;
 }
 
 .rating-count {
