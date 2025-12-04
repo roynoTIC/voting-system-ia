@@ -38,6 +38,16 @@ header p {
     color: #999;
 }
 
+.sync-status.online {
+    color: #4caf50;
+    font-weight: 600;
+}
+
+.sync-status.offline {
+    color: #f44336;
+    font-weight: 600;
+}
+
 .controls {
     display: flex;
     gap: 15px;

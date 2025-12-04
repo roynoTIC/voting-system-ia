@@ -345,10 +345,10 @@ function updateSyncStatus() {
     if (statusEl) {
         if (votingSystem.isOnline) {
             statusEl.textContent = '🟢 Synchronisé';
-            statusEl.style.color = '#4caf50';
+            statusEl.className = 'sync-status online';
         } else {
             statusEl.textContent = '🔴 Hors ligne (données locales)';
-            statusEl.style.color = '#f44336';
+            statusEl.className = 'sync-status offline';
         }
     }
 }
