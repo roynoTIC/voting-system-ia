@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Initialiser Firebase avec les Questions</title>
+    <style>
+        body {
+            font-family: monospace;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #4ec9b0;
+            border-bottom: 2px solid #4ec9b0;
+            padding-bottom: 10px;
+        }
+        .status {
+            margin: 15px 0;
+            padding: 15px;
+            border-left: 4px solid #999;
+            background: #252526;
+        }
+        .status.success {
+            border-left-color: #4ec9b0;
+            background: #1a3a2a;
+        }
+        .status.error {
+            border-left-color: #f48771;
+            background: #3a1a1a;
+        }
+        .status.info {
+            border-left-color: #9cdcfe;
+            background: #1a2a3a;
+        }
+        .success { color: #4ec9b0; }
+        .error { color: #f48771; }
+        .info { color: #9cdcfe; }
+        button {
+            background: #4ec9b0;
+            color: #1e1e1e;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1em;
+            margin-top: 20px;
+        }
+        button:hover {
+            background: #6dd9c0;
+        }
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+        .progress {
+            margin: 10px 0;
+            font-size: 0.9em;
+            color: #858585;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📤 Initialiser Firebase avec les Questions</h1>
+        <div id="status"></div>
+        <button id="initBtn" onclick="initializeData()">Charger les Questions dans Firebase</button>
+        <button id="clearBtn" onclick="clearData()" style="margin-left: 10px; background: #f48771;">Effacer les Données</button>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+    <script src="firebase-config.js"></script>
+
+    <script>
+        const statusDiv = document.getElementById('status');
+        const initBtn = document.getElementById('initBtn');
+        const clearBtn = document.getElementById('clearBtn');
+
+        const initialQuestions = [
+            "Pourquoi l'IA invente-t-elle des choses fausses?",
+            "Est-ce que l'IA est mon amie?",
+            "Est-ce que l'IA m'espionne?",
+            "L'IA est-elle intelligente?",
+            "Est-ce que je vais devenir moins intelligent si j'utilise l'IA?",
+            "Pourquoi les femmes sont-elles oubliées par l'IA?",
+            "Comment l'IA trouve-t-elle ses réponses?",
+            "Mes données sont-elles en sécurité?",
+            "Puis-je faire confiance à l'IA",
+            "Pourquoi ai-je toujours raison avec l'IA ?",
+            "Est-ce que l'IA cherche à m'influencer ?",
+            "Si je vois une vidéo, puis-je y croire ?",
+            "Est-ce dangereux d'entraîner une IA avec nos données personnelles ?",
+            "Quels sont mes outils pour discerner du contenu créé par l'IA (vidéo / photo / textuel) ?",
+            "L'IA va-t-elle remplacer les humains… ou seulement les tâches qu'on déteste faire ?",
+            "L'IA peut-elle raisonner… ou seulement calculer ?",
+            "Que se passe-t-il avec les données qu'on donne aux IA ?",
+            "Que veut dire \"entraîner\" une IA ?",
+            "Peut-on savoir si un texte a été écrit par une IA ?",
+            "Comment l'IA influence-t-elle notre créativité ?",
+            "Comment L'IA générative fait-elle pour générer sa réponse?",
+            "Est-ce que l'IA est fiable?"
+        ];
+
+        function addStatus(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            
+            let emoji = 'ℹ️';
+            if (type === 'success') emoji = '✅';
+            if (type === 'error') emoji = '❌';
+            
+            div.innerHTML = `<span class="${type}">${emoji} ${message}</span>`;
+            statusDiv.appendChild(div);
+        }
+
+        function addProgress(current, total) {
+            const div = document.createElement('div');
+            div.className = 'progress';
+            div.textContent = `Progression: ${current}/${total}`;
+            statusDiv.appendChild(div);
+        }
+
+        async function initializeData() {
+            statusDiv.innerHTML = '';
+            initBtn.disabled = true;
+            clearBtn.disabled = true;
+
+            try {
+                addStatus('Vérification de Firebase...', 'info');
+                
+                if (!firebase.apps.length) {
+                    addStatus('Firebase non initialisé', 'error');
+                    return;
+                }
+
+                addStatus('Authentification...', 'info');
+                const auth = firebase.auth();
+                
+                // Vérifier si déjà authentifié
+                if (!auth.currentUser) {
+                    await auth.signInAnonymously();
+                }
+
+                addStatus('Connecté anonymement', 'success');
+
+                const db = firebase.database();
+                const questionsRef = db.ref('questions');
+
+                addStatus('Vérification des données existantes...', 'info');
+                const snapshot = await questionsRef.once('value');
+                
+                if (snapshot.exists()) {
+                    addStatus('Les données existent déjà. Remplacement...', 'info');
+                }
+
+                addStatus(`Chargement de ${initialQuestions.length} questions...`, 'info');
+
+                const questionsObj = {};
+                initialQuestions.forEach((text, id) => {
+                    questionsObj[id] = {
+                        id: id,
+                        text: text,
+                        votes: [],
+                        createdAt: new Date().toISOString(),
+                        merged: false,
+                        reformulations: [],
+                        relatedQuestions: [],
+                        comments: []
+                    };
+                });
+
+                // Envoyer les données
+                await questionsRef.set(questionsObj);
+
+                addStatus(`✅ ${initialQuestions.length} questions chargées avec succès!`, 'success');
+                addStatus('Les données sont maintenant dans Firebase', 'success');
+                addStatus('Tu peux fermer cette page et utiliser l\'app normalement', 'success');
+
+            } catch (error) {
+                addStatus(`Erreur: ${error.message}`, 'error');
+                console.error('Erreur complète:', error);
+            } finally {
+                initBtn.disabled = false;
+                clearBtn.disabled = false;
+            }
+        }
+
+        async function clearData() {
+            if (!confirm('Êtes-vous sûr? Cela supprimera TOUTES les données de Firebase.')) {
+                return;
+            }
+
+            statusDiv.innerHTML = '';
+            initBtn.disabled = true;
+            clearBtn.disabled = true;
+
+            try {
+                addStatus('Suppression des données...', 'info');
+                
+                const db = firebase.database();
+                await db.ref('questions').remove();
+                
+                addStatus('✅ Toutes les données ont été supprimées', 'success');
+
+            } catch (error) {
+                addStatus(`Erreur: ${error.message}`, 'error');
+            } finally {
+                initBtn.disabled = false;
+                clearBtn.disabled = false;
+            }
+        }
+
+        // Vérifier Firebase au chargement
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                if (firebase.apps.length > 0) {
+                    addStatus('Firebase est prêt', 'success');
+                } else {
+                    addStatus('Firebase n\'est pas initialisé', 'error');
+                }
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

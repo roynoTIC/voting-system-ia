@@ -8,3 +8,13 @@ const FIREBASE_CONFIG = {
     messagingSenderId: "799548301552",
     appId: "1:799548301552:web:788c557d98157e1585a235"
 };
+
+// Initialiser Firebase
+if (typeof firebase !== 'undefined') {
+    try {
+        firebase.initializeApp(FIREBASE_CONFIG);
+        console.log('Firebase initialisé avec succès');
+    } catch (error) {
+        console.error('Erreur initialisation Firebase:', error);
+    }
+}

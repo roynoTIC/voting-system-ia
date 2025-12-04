@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Test Chargement Firebase</title>
+    <style>
+        body {
+            font-family: monospace;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+        }
+        .log {
+            background: #252526;
+            padding: 10px;
+            margin: 5px 0;
+            border-left: 3px solid #4ec9b0;
+        }
+        .error {
+            border-left-color: #f48771;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test Chargement Firebase</h1>
+    <div id="logs"></div>
+
+    <script>
+        const logsDiv = document.getElementById('logs');
+
+        function log(message, isError = false) {
+            const div = document.createElement('div');
+            div.className = `log ${isError ? 'error' : ''}`;
+            div.textContent = message;
+            logsDiv.appendChild(div);
+            console.log(message);
+        }
+
+        log('1. Avant le chargement des scripts');
+        log(`   firebase: ${typeof firebase}`);
+    </script>
+
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script>
+        log('2. Après firebase-app-compat.js');
+        log(`   firebase: ${typeof firebase}`);
+        if (firebase) {
+            log(`   firebase.app: ${typeof firebase.app}`);
+        }
+    </script>
+
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database-compat.js"></script>
+    <script>
+        log('3. Après firebase-database-compat.js');
+        log(`   firebase.database: ${typeof firebase.database}`);
+    </script>
+
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+    <script>
+        log('4. Après firebase-auth-compat.js');
+        log(`   firebase.auth: ${typeof firebase.auth}`);
+    </script>
+
+    <script src="firebase-config.js"></script>
+    <script>
+        log('5. Après firebase-config.js');
+        log(`   FIREBASE_CONFIG: ${typeof FIREBASE_CONFIG}`);
+        if (typeof FIREBASE_CONFIG !== 'undefined') {
+            log(`   projectId: ${FIREBASE_CONFIG.projectId}`);
+        }
+    </script>
+
+    <script>
+        log('6. Test d\'initialisation');
+        try {
+            if (typeof firebase !== 'undefined' && typeof FIREBASE_CONFIG !== 'undefined') {
+                firebase.initializeApp(FIREBASE_CONFIG);
+                log('✅ Firebase initialisé avec succès');
+                
+                // Test authentification
+                firebase.auth().signInAnonymously().then(() => {
+                    log('✅ Authentification anonyme réussie');
+                }).catch(err => {
+                    log(`❌ Erreur authentification: ${err.message}`, true);
+                });
+            } else {
+                log('❌ Firebase ou config non disponible', true);
+            }
+        } catch (error) {
+            log(`❌ Erreur: ${error.message}`, true);
+        }
+    </script>
+</body>
+</html>

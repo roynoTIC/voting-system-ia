@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnostic Firebase</title>
+    <style>
+        body {
+            font-family: monospace;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #4ec9b0;
+            border-bottom: 2px solid #4ec9b0;
+            padding-bottom: 10px;
+        }
+        .check {
+            margin: 15px 0;
+            padding: 10px;
+            border-left: 4px solid #999;
+            background: #252526;
+        }
+        .check.success {
+            border-left-color: #4ec9b0;
+            background: #1a3a2a;
+        }
+        .check.error {
+            border-left-color: #f48771;
+            background: #3a1a1a;
+        }
+        .check.warning {
+            border-left-color: #dcdcaa;
+            background: #3a3a1a;
+        }
+        .status {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .success { color: #4ec9b0; }
+        .error { color: #f48771; }
+        .warning { color: #dcdcaa; }
+        .info { color: #9cdcfe; }
+        code {
+            background: #1e1e1e;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        .details {
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: #858585;
+        }
+        button {
+            background: #4ec9b0;
+            color: #1e1e1e;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+        button:hover {
+            background: #6dd9c0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Diagnostic Firebase</h1>
+        <div id="diagnostics"></div>
+        <button onclick="runDiagnostics()">Relancer le diagnostic</button>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+    <script src="firebase-config.js"></script>
+
+    <script>
+        const diagnosticsDiv = document.getElementById('diagnostics');
+
+        function addCheck(title, status, message, details = '') {
+            const check = document.createElement('div');
+            check.className = `check ${status}`;
+            
+            let statusEmoji = '❓';
+            if (status === 'success') statusEmoji = '✅';
+            if (status === 'error') statusEmoji = '❌';
+            if (status === 'warning') statusEmoji = '⚠️';
+            
+            check.innerHTML = `
+                <div class="status"><span class="${status}">${statusEmoji} ${title}</span></div>
+                <div>${message}</div>
+                ${details ? `<div class="details">${details}</div>` : ''}
+            `;
+            diagnosticsDiv.appendChild(check);
+        }
+
+        async function runDiagnostics() {
+            diagnosticsDiv.innerHTML = '';
+            
+            // Debug: Vérifier les variables globales
+            console.log('firebase:', typeof firebase);
+            console.log('FIREBASE_CONFIG:', typeof FIREBASE_CONFIG);
+            
+            // 1. Vérifier Firebase SDK
+            if (typeof firebase !== 'undefined' && firebase.app) {
+                addCheck('Firebase SDK', 'success', 'Firebase SDK chargé correctement');
+            } else {
+                addCheck('Firebase SDK', 'error', 'Firebase SDK non chargé', `firebase: ${typeof firebase}`);
+                return;
+            }
+
+            // 2. Vérifier la configuration
+            if (typeof FIREBASE_CONFIG !== 'undefined') {
+                addCheck('Configuration Firebase', 'success', 'Configuration trouvée');
+                const config = FIREBASE_CONFIG;
+                const details = `
+                    Project ID: <code>${config.projectId}</code><br>
+                    Auth Domain: <code>${config.authDomain}</code><br>
+                    Database URL: <code>${config.databaseURL}</code>
+                `;
+                addCheck('Détails de configuration', 'info', 'Configuration chargée', details);
+            } else {
+                addCheck('Configuration Firebase', 'error', 'Configuration non trouvée - firebase-config.js n\'est pas chargé');
+                return;
+            }
+
+            // 3. Vérifier l'initialisation de Firebase
+            try {
+                const app = firebase.app();
+                addCheck('Initialisation Firebase', 'success', 'Firebase initialisé');
+            } catch (error) {
+                addCheck('Initialisation Firebase', 'warning', 'Firebase pas encore initialisé', `Erreur: ${error.message}`);
+            }
+
+            // 4. Vérifier l'authentification
+            try {
+                const auth = firebase.auth();
+                addCheck('Module Auth', 'success', 'Module d\'authentification chargé');
+                
+                // Essayer de se connecter anonymement
+                auth.signInAnonymously().then((userCredential) => {
+                    addCheck('Authentification anonyme', 'success', 'Connecté anonymement', `User ID: <code>${userCredential.user.uid}</code>`);
+                    
+                    // 5. Vérifier la base de données
+                    testDatabase();
+                }).catch((error) => {
+                    addCheck('Authentification anonyme', 'error', 'Erreur de connexion anonyme', `Erreur: ${error.message}`);
+                });
+            } catch (error) {
+                addCheck('Module Auth', 'error', 'Erreur du module d\'authentification', `Erreur: ${error.message}`);
+            }
+        }
+
+        function testDatabase() {
+            try {
+                const db = firebase.database();
+                addCheck('Module Database', 'success', 'Module de base de données chargé');
+
+                // Tester la lecture
+                db.ref('questions').once('value', (snapshot) => {
+                    if (snapshot.exists()) {
+                        const data = snapshot.val();
+                        const count = Object.keys(data).length;
+                        addCheck('Lecture de la base de données', 'success', `Données trouvées`, `${count} questions trouvées`);
+                    } else {
+                        addCheck('Lecture de la base de données', 'warning', 'Aucune donnée trouvée', 'La base de données est vide');
+                    }
+                }).catch((error) => {
+                    addCheck('Lecture de la base de données', 'error', 'Erreur de lecture', `Erreur: ${error.message}`);
+                });
+
+                // Tester l'écriture
+                const testRef = db.ref('test_connection');
+                testRef.set({ timestamp: new Date().toISOString() }).then(() => {
+                    addCheck('Écriture dans la base de données', 'success', 'Écriture réussie');
+                    
+                    // Nettoyer le test
+                    testRef.remove();
+                }).catch((error) => {
+                    addCheck('Écriture dans la base de données', 'error', 'Erreur d\'écriture', `Erreur: ${error.message}`);
+                });
+
+            } catch (error) {
+                addCheck('Module Database', 'error', 'Erreur du module de base de données', `Erreur: ${error.message}`);
+            }
+        }
+
+        // Lancer le diagnostic au chargement
+        window.addEventListener('load', () => {
+            setTimeout(runDiagnostics, 1000);
+        });
+    </script>
+</body>
+</html>

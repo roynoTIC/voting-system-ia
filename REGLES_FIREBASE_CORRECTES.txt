@@ -1,0 +1,12 @@
+{
+  "rules": {
+    "questions": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "test_connection": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    }
+  }
+}

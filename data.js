@@ -42,12 +42,6 @@ class VotingSystem {
     }
 
     initFirebase() {
-        if (!window.FIREBASE_CONFIG) {
-            console.warn('Firebase config not loaded. Using local storage only.');
-            this.loadLocalData();
-            return;
-        }
-
         if (!window.firebase) {
             console.error('Firebase SDK not loaded');
             this.loadLocalData();
@@ -55,7 +49,6 @@ class VotingSystem {
         }
 
         try {
-            firebase.initializeApp(FIREBASE_CONFIG);
             this.db = firebase.database();
             this.auth = firebase.auth();
             
