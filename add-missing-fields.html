@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ajouter les Champs Manquants</title>
+    <style>
+        body {
+            font-family: monospace;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #4ec9b0;
+            border-bottom: 2px solid #4ec9b0;
+            padding-bottom: 10px;
+        }
+        .status {
+            background: #252526;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #4ec9b0;
+            border-radius: 3px;
+        }
+        .status.success {
+            border-left-color: #4ec9b0;
+            background: #1a3a2a;
+        }
+        .status.error {
+            border-left-color: #f48771;
+            background: #3a1a1a;
+        }
+        .status.warning {
+            border-left-color: #dcdcaa;
+            background: #3a3a1a;
+        }
+        .status.info {
+            border-left-color: #9cdcfe;
+            background: #1a2a3a;
+        }
+        button {
+            background: #4ec9b0;
+            color: #1e1e1e;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1em;
+            margin: 10px 5px 10px 0;
+        }
+        button:hover {
+            background: #6dd9c0;
+        }
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>➕ Ajouter les Champs Manquants</h1>
+        <div id="status"></div>
+        <button type="button" id="addBtn" onclick="addMissingFields()">Ajouter les Champs</button>
+        <button type="button" id="verifyBtn" onclick="verifyFields()">Vérifier</button>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+    <script src="firebase-config.js"></script>
+
+    <script>
+        const statusDiv = document.getElementById('status');
+        const addBtn = document.getElementById('addBtn');
+        const verifyBtn = document.getElementById('verifyBtn');
+
+        function addStatus(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            
+            let emoji = 'ℹ️';
+            if (type === 'success') emoji = '✅';
+            if (type === 'error') emoji = '❌';
+            if (type === 'warning') emoji = '⚠️';
+            
+            div.innerHTML = `<strong>${emoji} ${message}</strong>`;
+            statusDiv.appendChild(div);
+        }
+
+        async function addMissingFields() {
+            statusDiv.innerHTML = '';
+            addBtn.disabled = true;
+
+            try {
+                addStatus('Authentification...', 'info');
+                const auth = firebase.auth();
+                
+                if (!auth.currentUser) {
+                    await auth.signInAnonymously();
+                }
+                addStatus('✅ Authentifié', 'success');
+
+                addStatus('Lecture des données...', 'info');
+                const db = firebase.database();
+                const snapshot = await db.ref('questions').once('value');
+                const data = snapshot.val();
+
+                if (!data) {
+                    addStatus('❌ Aucune donnée trouvée', 'error');
+                    return;
+                }
+
+                addStatus(`✅ ${Object.keys(data).length} questions trouvées`, 'success');
+
+                addStatus('Ajout des champs manquants...', 'info');
+                
+                const updates = {};
+                Object.keys(data).forEach(key => {
+                    const q = data[key];
+                    
+                    // Ajouter les champs s'ils n'existent pas
+                    if (!('votes' in q)) {
+                        updates[`${key}/votes`] = [];
+                    }
+                    if (!('reformulations' in q)) {
+                        updates[`${key}/reformulations`] = [];
+                    }
+                    if (!('relatedQuestions' in q)) {
+                        updates[`${key}/relatedQuestions`] = [];
+                    }
+                    if (!('comments' in q)) {
+                        updates[`${key}/comments`] = [];
+                    }
+                });
+
+                if (Object.keys(updates).length === 0) {
+                    addStatus('✅ Tous les champs sont déjà présents', 'success');
+                } else {
+                    await db.ref('questions').update(updates);
+                    addStatus(`✅ ${Object.keys(updates).length} champs ajoutés`, 'success');
+                }
+
+                verifyBtn.disabled = false;
+
+            } catch (error) {
+                addStatus(`❌ Erreur: ${error.message}`, 'error');
+                console.error(error);
+            } finally {
+                addBtn.disabled = false;
+            }
+        }
+
+        async function verifyFields() {
+            statusDiv.innerHTML = '';
+            verifyBtn.disabled = true;
+
+            try {
+                addStatus('Vérification...', 'info');
+                
+                const db = firebase.database();
+                const snapshot = await db.ref('questions').once('value');
+                const data = snapshot.val();
+
+                if (!data) {
+                    addStatus('❌ Aucune donnée trouvée', 'error');
+                    return;
+                }
+
+                const keys = Object.keys(data);
+                addStatus(`✅ ${keys.length} questions trouvées`, 'success');
+
+                const firstQuestion = data[keys[0]];
+                const requiredFields = ['id', 'text', 'votes', 'createdAt', 'merged', 'reformulations', 'relatedQuestions', 'comments'];
+                const missingFields = requiredFields.filter(f => !(f in firstQuestion));
+
+                if (missingFields.length === 0) {
+                    addStatus('✅ Structure correcte - tous les champs sont présents!', 'success');
+                    addStatus('✅ Tu peux maintenant utiliser l\'app normalement', 'success');
+                } else {
+                    addStatus(`❌ Champs manquants: ${missingFields.join(', ')}`, 'error');
+                }
+
+                // Afficher les détails
+                addStatus('Champs présents:', 'info');
+                Object.keys(firstQuestion).forEach(key => {
+                    const value = firstQuestion[key];
+                    let display = '';
+                    if (value === null) {
+                        display = 'null';
+                    } else if (Array.isArray(value)) {
+                        display = `array[${value.length}]`;
+                    } else if (typeof value === 'object') {
+                        display = 'object';
+                    } else {
+                        display = typeof value;
+                    }
+                    addStatus(`  • ${key}: ${display}`, 'info');
+                });
+
+            } catch (error) {
+                addStatus(`❌ Erreur: ${error.message}`, 'error');
+            } finally {
+                verifyBtn.disabled = false;
+            }
+        }
+
+        // Vérifier au chargement
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                addStatus('Prêt à ajouter les champs', 'success');
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
