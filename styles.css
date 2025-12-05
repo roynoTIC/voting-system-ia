@@ -145,16 +145,23 @@ header p {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8px;
+    gap: 0;
     justify-content: center;
     margin-bottom: 15px;
+}
+
+.stars-row {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-bottom: 8px;
 }
 
 .average-rating {
     font-size: 0.9em;
     color: #667eea;
     font-weight: 600;
-    margin-top: 5px;
+    text-align: center;
 }
 
 .star {

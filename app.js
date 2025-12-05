@@ -275,10 +275,12 @@ function createStarRating(questionId, userRating) {
     const avgRating = votingSystem.getAverageRating(question);
     
     let html = '<div class="rating-container">';
+    html += '<div class="stars-row">';
     for (let i = 1; i <= 5; i++) {
         const isActive = userRating >= i ? 'active' : '';
         html += `<span class="star ${isActive}" onclick="handleRate(${questionId}, ${i})">⭐</span>`;
     }
+    html += '</div>';
     html += `<div class="average-rating">Moyenne: ${avgRating}/5</div>`;
     html += '</div>';
     return html;
