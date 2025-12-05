@@ -132,7 +132,9 @@ class VotingSystem {
     parseRelatedQuestions(relatedData) {
         if (!relatedData || relatedData === 0) return [];
         if (typeof relatedData === 'object' && !Array.isArray(relatedData)) {
-            return Object.values(relatedData);
+            const values = Object.values(relatedData);
+            // Filtrer les valeurs non-numériques
+            return values.filter(v => typeof v === 'number');
         }
         return Array.isArray(relatedData) ? relatedData : [];
     }
@@ -154,7 +156,46 @@ class VotingSystem {
         if (this.isOnline && this.db) {
             const questionsObj = {};
             this.questions.forEach(q => {
-                questionsObj[q.id] = q;
+                // Convertir les tableaux en objets pour Firebase
+                const votesObj = {};
+                if (Array.isArray(q.votes) && q.votes.length > 0) {
+                    q.votes.forEach((v, idx) => {
+                        votesObj[idx] = v;
+                    });
+                }
+
+                const reformulationsObj = {};
+                if (Array.isArray(q.reformulations) && q.reformulations.length > 0) {
+                    q.reformulations.forEach((r, idx) => {
+                        reformulationsObj[idx] = r;
+                    });
+                }
+
+                const relatedObj = {};
+                if (Array.isArray(q.relatedQuestions) && q.relatedQuestions.length > 0) {
+                    q.relatedQuestions.forEach((r, idx) => {
+                        relatedObj[idx] = r;
+                    });
+                }
+
+                const commentsObj = {};
+                if (Array.isArray(q.comments) && q.comments.length > 0) {
+                    q.comments.forEach((c, idx) => {
+                        commentsObj[idx] = c;
+                    });
+                }
+
+                questionsObj[q.id] = {
+                    id: q.id,
+                    text: q.text,
+                    votes: Object.keys(votesObj).length > 0 ? votesObj : 0,
+                    averageRating: q.averageRating || 0,
+                    createdAt: q.createdAt,
+                    merged: q.merged || false,
+                    reformulations: Object.keys(reformulationsObj).length > 0 ? reformulationsObj : 0,
+                    relatedQuestions: Object.keys(relatedObj).length > 0 ? relatedObj : 0,
+                    comments: Object.keys(commentsObj).length > 0 ? commentsObj : 0
+                };
             });
             this.db.ref('questions').set(questionsObj).then(() => {
                 console.log('Données synchronisées avec Firebase');
