@@ -66,44 +66,84 @@ class VotingSystem {
     }
 
     setupRealtimeSync() {
+        console.log('Démarrage de la synchronisation Firebase...');
         this.db.ref('questions').on('value', (snapshot) => {
             const data = snapshot.val();
+            console.log('Données reçues de Firebase:', data);
             if (data) {
-                this.questions = Object.values(data);
+                // Convertir les données Firebase en format interne
+                this.questions = Object.values(data).map(q => ({
+                    id: q.id,
+                    text: q.text,
+                    votes: this.parseVotes(q.votes),
+                    averageRating: q.averageRating || 0,
+                    createdAt: q.createdAt,
+                    merged: q.merged || false,
+                    reformulations: this.parseReformulations(q.reformulations),
+                    relatedQuestions: this.parseRelatedQuestions(q.relatedQuestions),
+                    comments: this.parseComments(q.comments)
+                }));
                 this.isOnline = true;
                 console.log('Questions chargées depuis Firebase:', this.questions.length);
                 this.notifySyncCallbacks();
             } else {
                 console.warn('Aucune donnée dans Firebase, chargement des données locales');
                 this.loadLocalData();
+                this.isOnline = false;
+                this.notifySyncCallbacks();
             }
         }, (error) => {
-            console.warn('Firebase sync error:', error);
+            console.error('Firebase sync error:', error);
             this.isOnline = false;
             this.loadLocalData();
+            this.notifySyncCallbacks();
         });
     }
 
     loadLocalData() {
+        console.log('Chargement des données locales...');
         const stored = localStorage.getItem('votingData');
         if (stored) {
-            const parsed = JSON.parse(stored);
-            // Convertir les données Firebase en format interne
-            this.questions = Object.values(parsed).map(q => ({
-                id: q.id,
-                text: q.text,
-                votes: this.parseVotes(q.votes),
-                createdAt: q.createdAt,
-                merged: q.merged || false,
-                reformulations: this.parseReformulations(q.reformulations),
-                relatedQuestions: this.parseRelatedQuestions(q.relatedQuestions),
-                comments: this.parseComments(q.comments)
-            }));
+            try {
+                const parsed = JSON.parse(stored);
+                // Convertir les données en format interne
+                if (Array.isArray(parsed)) {
+                    this.questions = parsed.map(q => ({
+                        id: q.id,
+                        text: q.text,
+                        votes: this.parseVotes(q.votes),
+                        averageRating: q.averageRating || 0,
+                        createdAt: q.createdAt,
+                        merged: q.merged || false,
+                        reformulations: this.parseReformulations(q.reformulations),
+                        relatedQuestions: this.parseRelatedQuestions(q.relatedQuestions),
+                        comments: this.parseComments(q.comments)
+                    }));
+                } else {
+                    this.questions = Object.values(parsed).map(q => ({
+                        id: q.id,
+                        text: q.text,
+                        votes: this.parseVotes(q.votes),
+                        averageRating: q.averageRating || 0,
+                        createdAt: q.createdAt,
+                        merged: q.merged || false,
+                        reformulations: this.parseReformulations(q.reformulations),
+                        relatedQuestions: this.parseRelatedQuestions(q.relatedQuestions),
+                        comments: this.parseComments(q.comments)
+                    }));
+                }
+                console.log('Données locales chargées:', this.questions.length);
+            } catch (e) {
+                console.error('Erreur parsing données locales:', e);
+                this.questions = [];
+            }
         } else {
+            console.log('Aucune donnée locale, création des questions initiales');
             this.questions = initialQuestions.map((text, id) => ({
                 id: id,
                 text: text,
                 votes: [],
+                averageRating: 0,
                 createdAt: new Date().toISOString(),
                 merged: false,
                 reformulations: [],

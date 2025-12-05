@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vérification Finale Firebase</title>
+    <style>
+        body {
+            font-family: monospace;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #4ec9b0;
+            border-bottom: 2px solid #4ec9b0;
+            padding-bottom: 10px;
+        }
+        .status {
+            background: #252526;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #4ec9b0;
+            border-radius: 3px;
+        }
+        .status.success {
+            border-left-color: #4ec9b0;
+            background: #1a3a2a;
+        }
+        .status.error {
+            border-left-color: #f48771;
+            background: #3a1a1a;
+        }
+        .status.warning {
+            border-left-color: #dcdcaa;
+            background: #3a3a1a;
+        }
+        .status.info {
+            border-left-color: #9cdcfe;
+            background: #1a2a3a;
+        }
+        button {
+            background: #4ec9b0;
+            color: #1e1e1e;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1em;
+            margin: 10px 5px 10px 0;
+        }
+        button:hover {
+            background: #6dd9c0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Vérification Finale Firebase</h1>
+        <div id="status"></div>
+        <button type="button" onclick="runCheck()">Lancer la Vérification</button>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+    <script src="firebase-config.js"></script>
+
+    <script>
+        const statusDiv = document.getElementById('status');
+
+        function addStatus(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            
+            let emoji = 'ℹ️';
+            if (type === 'success') emoji = '✅';
+            if (type === 'error') emoji = '❌';
+            if (type === 'warning') emoji = '⚠️';
+            
+            div.innerHTML = `<strong>${emoji} ${message}</strong>`;
+            statusDiv.appendChild(div);
+        }
+
+        async function runCheck() {
+            statusDiv.innerHTML = '';
+
+            try {
+                // 1. Vérifier Firebase SDK
+                addStatus('1. Vérification Firebase SDK...', 'info');
+                if (typeof firebase === 'undefined') {
+                    addStatus('Firebase SDK non chargé', 'error');
+                    return;
+                }
+                addStatus('Firebase SDK chargé', 'success');
+
+                // 2. Vérifier la configuration
+                addStatus('2. Vérification de la configuration...', 'info');
+                if (typeof FIREBASE_CONFIG === 'undefined') {
+                    addStatus('Configuration Firebase non trouvée', 'error');
+                    return;
+                }
+                addStatus(`Configuration trouvée: ${FIREBASE_CONFIG.projectId}`, 'success');
+
+                // 3. Vérifier l'initialisation
+                addStatus('3. Vérification de l\'initialisation...', 'info');
+                let app;
+                try {
+                    app = firebase.app();
+                    addStatus('Firebase déjà initialisé', 'success');
+                } catch (e) {
+                    addStatus('Firebase pas initialisé - initialisation...', 'warning');
+                    app = firebase.initializeApp(FIREBASE_CONFIG);
+                    addStatus('Firebase initialisé', 'success');
+                }
+
+                // 4. Authentification
+                addStatus('4. Test d\'authentification...', 'info');
+                const auth = firebase.auth();
+                
+                if (!auth.currentUser) {
+                    const result = await auth.signInAnonymously();
+                    addStatus(`Authentifié: ${result.user.uid}`, 'success');
+                } else {
+                    addStatus(`Déjà authentifié: ${auth.currentUser.uid}`, 'success');
+                }
+
+                // 5. Lecture
+                addStatus('5. Test de lecture...', 'info');
+                const db = firebase.database();
+                const snapshot = await db.ref('questions').once('value');
+                
+                if (snapshot.exists()) {
+                    const data = snapshot.val();
+                    const count = Object.keys(data).length;
+                    addStatus(`Lecture réussie: ${count} questions trouvées`, 'success');
+                    
+                    // Vérifier la première question
+                    const firstKey = Object.keys(data)[0];
+                    const firstQ = data[firstKey];
+                    addStatus('Champs de la première question:', 'info');
+                    Object.keys(firstQ).forEach(key => {
+                        addStatus(`  • ${key}: ${typeof firstQ[key]}`, 'info');
+                    });
+                } else {
+                    addStatus('Aucune donnée trouvée', 'warning');
+                }
+
+                // 6. Écriture
+                addStatus('6. Test d\'écriture...', 'info');
+                const testRef = db.ref('test_' + Date.now());
+                await testRef.set({ test: true });
+                addStatus('Écriture réussie', 'success');
+                await testRef.remove();
+
+                addStatus('✅ Tous les tests réussis!', 'success');
+                addStatus('Firebase fonctionne correctement', 'success');
+
+            } catch (error) {
+                addStatus(`Erreur: ${error.message}`, 'error');
+                console.error(error);
+            }
+        }
+
+        // Lancer au chargement
+        window.addEventListener('load', () => {
+            setTimeout(runCheck, 2000);
+        });
+    </script>
+</body>
+</html>
