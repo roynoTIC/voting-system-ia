@@ -279,9 +279,6 @@ class VotingSystem {
             };
             question.votes.push(vote);
             console.log('Vote enregistré:', vote);
-            
-            // Mettre à jour la moyenne
-            question.averageRating = this.getAverageRating(question);
         } else {
             console.log('Vote supprimé pour la question:', questionId);
         }
@@ -297,14 +294,11 @@ class VotingSystem {
     }
 
     getAverageRating(question) {
-        // Si averageRating existe déjà, l'utiliser
-        if (question.averageRating !== undefined && question.averageRating !== null) {
-            return question.averageRating;
-        }
-        // Sinon calculer à partir des votes
+        // Calculer à partir des votes
         if (question.votes && Array.isArray(question.votes) && question.votes.length > 0) {
             const sum = question.votes.reduce((a, b) => a + (b.rating || 0), 0);
-            return (sum / question.votes.length).toFixed(1);
+            const average = sum / question.votes.length;
+            return parseFloat(average.toFixed(1));
         }
         return 0;
     }
