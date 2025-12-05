@@ -271,11 +271,15 @@ function escapeHtml(text) {
 }
 
 function createStarRating(questionId, userRating) {
+    const question = votingSystem.questions.find(q => q.id === questionId);
+    const avgRating = votingSystem.getAverageRating(question);
+    
     let html = '<div class="rating-container">';
     for (let i = 1; i <= 5; i++) {
         const isActive = userRating >= i ? 'active' : '';
         html += `<span class="star ${isActive}" onclick="handleRate(${questionId}, ${i})">⭐</span>`;
     }
+    html += `<div class="average-rating">Moyenne: ${avgRating}/5</div>`;
     html += '</div>';
     return html;
 }
