@@ -87,7 +87,18 @@ class VotingSystem {
     loadLocalData() {
         const stored = localStorage.getItem('votingData');
         if (stored) {
-            this.questions = JSON.parse(stored);
+            const parsed = JSON.parse(stored);
+            // Convertir les données Firebase en format interne
+            this.questions = Object.values(parsed).map(q => ({
+                id: q.id,
+                text: q.text,
+                votes: this.parseVotes(q.votes),
+                createdAt: q.createdAt,
+                merged: q.merged || false,
+                reformulations: this.parseReformulations(q.reformulations),
+                relatedQuestions: this.parseRelatedQuestions(q.relatedQuestions),
+                comments: this.parseComments(q.comments)
+            }));
         } else {
             this.questions = initialQuestions.map((text, id) => ({
                 id: id,
@@ -100,6 +111,38 @@ class VotingSystem {
                 comments: []
             }));
         }
+    }
+
+    parseVotes(votesData) {
+        if (!votesData || votesData === 0) return [];
+        if (typeof votesData === 'object' && !Array.isArray(votesData)) {
+            return Object.values(votesData);
+        }
+        return Array.isArray(votesData) ? votesData : [];
+    }
+
+    parseReformulations(reformData) {
+        if (!reformData || reformData === 0) return [];
+        if (typeof reformData === 'object' && !Array.isArray(reformData)) {
+            return Object.values(reformData);
+        }
+        return Array.isArray(reformData) ? reformData : [];
+    }
+
+    parseRelatedQuestions(relatedData) {
+        if (!relatedData || relatedData === 0) return [];
+        if (typeof relatedData === 'object' && !Array.isArray(relatedData)) {
+            return Object.values(relatedData);
+        }
+        return Array.isArray(relatedData) ? relatedData : [];
+    }
+
+    parseComments(commentsData) {
+        if (!commentsData || commentsData === 0) return [];
+        if (typeof commentsData === 'object' && !Array.isArray(commentsData)) {
+            return Object.values(commentsData);
+        }
+        return Array.isArray(commentsData) ? commentsData : [];
     }
 
     save() {
@@ -138,6 +181,11 @@ class VotingSystem {
             return;
         }
 
+        // Initialiser votes comme tableau s'il ne l'est pas
+        if (!Array.isArray(question.votes)) {
+            question.votes = [];
+        }
+
         // Supprimer l'ancien vote de cet utilisateur
         question.votes = question.votes.filter(v => v.userId !== this.userId);
 
@@ -150,6 +198,9 @@ class VotingSystem {
             };
             question.votes.push(vote);
             console.log('Vote enregistré:', vote);
+            
+            // Mettre à jour la moyenne
+            question.averageRating = this.getAverageRating(question);
         } else {
             console.log('Vote supprimé pour la question:', questionId);
         }
@@ -165,9 +216,16 @@ class VotingSystem {
     }
 
     getAverageRating(question) {
-        if (question.votes.length === 0) return 0;
-        const sum = question.votes.reduce((a, b) => a + b.rating, 0);
-        return (sum / question.votes.length).toFixed(1);
+        // Si averageRating existe déjà, l'utiliser
+        if (question.averageRating !== undefined && question.averageRating !== null) {
+            return question.averageRating;
+        }
+        // Sinon calculer à partir des votes
+        if (question.votes && Array.isArray(question.votes) && question.votes.length > 0) {
+            const sum = question.votes.reduce((a, b) => a + (b.rating || 0), 0);
+            return (sum / question.votes.length).toFixed(1);
+        }
+        return 0;
     }
 
     addQuestion(text) {
@@ -216,7 +274,8 @@ class VotingSystem {
             return;
         }
 
-        if (!question.reformulations) {
+        // Initialiser reformulations comme tableau s'il ne l'est pas
+        if (!Array.isArray(question.reformulations)) {
             question.reformulations = [];
         }
 
@@ -238,7 +297,8 @@ class VotingSystem {
             return;
         }
 
-        if (!question.relatedQuestions) {
+        // Initialiser relatedQuestions comme tableau s'il ne l'est pas
+        if (!Array.isArray(question.relatedQuestions)) {
             question.relatedQuestions = [];
         }
 
@@ -266,7 +326,8 @@ class VotingSystem {
             return;
         }
 
-        if (!question.comments) {
+        // Initialiser comments comme tableau s'il ne l'est pas
+        if (!Array.isArray(question.comments)) {
             question.comments = [];
         }
 
